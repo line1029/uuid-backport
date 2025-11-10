@@ -28,4 +28,46 @@ jobs:
     - name: Install tox
       run: uv tool install tox --with tox-uv
     - name: Run tox tests
-      run: tox
+      run: tox -e py${{ matrix.python-version//./ }}
+    - name: Store coverage data
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-data-${{ matrix.python-version }}
+        path: .coverage.*
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+  report:
+    runs-on: "ubuntu-latest"
+    needs: test
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+
+    - name: Install uv and tox
+      uses: astral-sh/setup-uv@v4
+    - run: uv tool install tox --with tox-uv
+
+    - name: Download all coverage data
+      uses: actions/download-artifact@v4
+      with:
+        pattern: coverage-data-*
+        path: .
+        merge-multiple: true
+
+    - name: Combine coverage and create report
+      run: tox -e report
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./coverage.xml
+        fail_ci_if_error: true

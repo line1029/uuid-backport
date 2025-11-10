@@ -1,5 +1,11 @@
 # uuid-backport
 
+[![PyPI version](https://img.shields.io/pypi/v/uuid-backport.svg)](https://pypi.org/project/uuid-backport/)
+[![Python versions](https://img.shields.io/pypi/pyversions/uuid-backport.svg)](https://pypi.org/project/uuid-backport/)
+[![PyPI Downloads](https://img.shields.io/pypi/dm/uuid-backport.svg)](https://pypistats.org/packages/uuid-backport)
+[![Tests](https://github.com/line1029/uuid-backport/actions/workflows/test.yml/badge.svg)](https://github.com/line1029/uuid-backport/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/line1029/uuid-backport/graph/badge.svg)](https://codecov.io/gh/line1029/uuid-backport)
+
 Backport of Python 3.14's UUID module (RFC 9562) for Python 3.9+
 
 ## Features

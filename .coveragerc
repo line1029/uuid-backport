@@ -1,0 +1,7 @@
+[run]
+parallel = true
+source = uuid_backport
+
+[report]
+fail_under = 0
+show_missing = true

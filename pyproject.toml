@@ -42,8 +42,8 @@ publish-url = "https://test.pypi.org/legacy/"
 explicit = true
 
 [dependency-groups]
-test = ["pytest>=7.0", "pytest-cov>=4.0"]
-lint = ["ruff>=0.1.0", "mypy>=1.0"]
+test = ["pytest", "coverage"]
+lint = ["ruff", "mypy"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
@@ -69,3 +69,4 @@ python_version = "3.9"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
+exclude = "tests/.*"

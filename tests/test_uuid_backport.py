@@ -1,8 +1,16 @@
 """Tests for uuid-backport package"""
 
+import sys
 import time as time_module
 
+import pytest
+
 from uuid_backport import MAX, NIL, RFC_4122, UUID, uuid6, uuid7, uuid8
+
+# Mark to skip tests on Python 3.14+ (uses standard library)
+skip_on_py314 = pytest.mark.skipif(
+    sys.version_info >= (3, 14), reason="Python 3.14+ uses standard library, not backport implementation"
+)
 
 
 class TestUUID6:
@@ -345,14 +353,192 @@ class TestUUIDClassCompatibility:
             assert u.version == version
 
         # Invalid version should raise
-        try:
+        with pytest.raises(ValueError):
             UUID(int=12345, version=0)
-            assert False, "Should raise ValueError for version 0"
-        except ValueError:
-            pass
 
-        try:
+        with pytest.raises(ValueError):
             UUID(int=12345, version=9)
-            assert False, "Should raise ValueError for version 9"
-        except ValueError:
-            pass
+
+
+class TestUUIDConstructorErrors:
+    """Tests for UUID constructor error cases"""
+
+    def test_no_arguments_error(self):
+        """Test that UUID constructor requires at least one argument"""
+        with pytest.raises(TypeError):
+            UUID()
+
+    def test_multiple_arguments_error(self):
+        """Test that UUID constructor rejects multiple arguments"""
+        with pytest.raises(TypeError):
+            UUID(hex="12345678-1234-5678-1234-567812345678", int=12345)
+
+    def test_badly_formed_hex_string(self):
+        """Test that badly formed hex strings are rejected"""
+        with pytest.raises(ValueError):
+            UUID(hex="12345678-1234-5678-1234-56781234567")  # too short
+
+        with pytest.raises(ValueError):
+            UUID(hex="not-a-valid-uuid-string")
+
+    def test_bytes_wrong_length(self):
+        """Test that bytes argument must be exactly 16 bytes"""
+        with pytest.raises(ValueError):
+            UUID(bytes=b"\x12\x34\x56\x78" * 3)  # 12 bytes
+
+    def test_bytes_le_constructor(self):
+        """Test UUID construction with bytes_le parameter"""
+        test_bytes_le = b"\x78\x56\x34\x12\x34\x12\x78\x56\x12\x34\x56\x78\x12\x34\x56\x78"
+        u = UUID(bytes_le=test_bytes_le)
+        assert isinstance(u, UUID)
+        # Verify it's a valid UUID
+        assert u.int > 0
+
+    def test_bytes_le_wrong_length(self):
+        """Test that bytes_le argument must be exactly 16 bytes"""
+        with pytest.raises(ValueError):
+            UUID(bytes_le=b"\x12\x34\x56\x78" * 3)  # 12 bytes
+
+    def test_fields_wrong_tuple_size(self):
+        """Test that fields argument must be a 6-tuple"""
+        with pytest.raises(ValueError):
+            UUID(fields=(0x12345678, 0x1234, 0x5678, 0x12, 0x34))  # only 5 elements
+
+    def test_fields_out_of_range(self):
+        """Test field value range validation"""
+        # field 1 (time_low) out of range
+        with pytest.raises(ValueError):
+            UUID(fields=(1 << 32, 0x1234, 0x5678, 0x12, 0x34, 0x567812345678))
+
+        # field 2 (time_mid) out of range
+        with pytest.raises(ValueError):
+            UUID(fields=(0x12345678, 1 << 16, 0x5678, 0x12, 0x34, 0x567812345678))
+
+        # field 3 (time_hi_version) out of range
+        with pytest.raises(ValueError):
+            UUID(fields=(0x12345678, 0x1234, 1 << 16, 0x12, 0x34, 0x567812345678))
+
+        # field 4 (clock_seq_hi_variant) out of range
+        with pytest.raises(ValueError):
+            UUID(fields=(0x12345678, 0x1234, 0x5678, 1 << 8, 0x34, 0x567812345678))
+
+        # field 5 (clock_seq_low) out of range
+        with pytest.raises(ValueError):
+            UUID(fields=(0x12345678, 0x1234, 0x5678, 0x12, 1 << 8, 0x567812345678))
+
+        # field 6 (node) out of range
+        with pytest.raises(ValueError):
+            UUID(fields=(0x12345678, 0x1234, 0x5678, 0x12, 0x34, 1 << 48))
+
+    def test_int_out_of_range(self):
+        """Test that int argument must be a valid 128-bit value"""
+        with pytest.raises(ValueError):
+            UUID(int=-1)
+
+        with pytest.raises(ValueError):
+            UUID(int=(1 << 128))
+
+
+@skip_on_py314
+class TestUUID6EdgeCases:
+    """Tests for UUID v6 edge cases (backport implementation only)"""
+
+    def test_uuid6_timestamp_monotonicity_same_time(self):
+        """Test uuid6 timestamp is incremented when generated at same time"""
+        import uuid_backport._backport as bp
+
+        # Reset state
+        bp._last_timestamp_v6 = None
+
+        u1 = uuid6()
+        # Set last timestamp to future to trigger monotonicity check
+        bp._last_timestamp_v6 = u1.time + 100
+        u2 = uuid6()
+
+        # u2 should have timestamp = _last_timestamp_v6 + 1
+        assert u2.time == bp._last_timestamp_v6
+
+
+@skip_on_py314
+class TestUUID7EdgeCases:
+    """Tests for UUID v7 edge cases (backport implementation only)"""
+
+    def test_uuid7_counter_overflow(self):
+        """Test uuid7 counter overflow behavior"""
+        import uuid_backport._backport as bp
+
+        # Reset state
+        bp._last_timestamp_v7 = None
+        bp._last_counter_v7 = 0
+
+        # Generate first UUID
+        _ = uuid7()
+        current_ts = bp._last_timestamp_v7
+
+        # Set counter to max value (42-bit: 0x3FF_FFFF_FFFF)
+        bp._last_counter_v7 = 0x3FF_FFFF_FFFF
+
+        # Generate next UUID - should overflow counter and increment timestamp
+        _ = uuid7()
+
+        # Timestamp should be incremented
+        assert bp._last_timestamp_v7 > current_ts
+        # Counter should be reset to a new random value < max
+        assert bp._last_counter_v7 < 0x3FF_FFFF_FFFF
+
+    def test_uuid7_backward_time(self):
+        """Test uuid7 handles backward time movement"""
+        import uuid_backport._backport as bp
+
+        # Reset state
+        bp._last_timestamp_v7 = None
+        bp._last_counter_v7 = 0
+
+        _ = uuid7()
+        last_ts = bp._last_timestamp_v7
+
+        # Simulate backward time by setting last timestamp to future
+        bp._last_timestamp_v7 = last_ts + 1000
+
+        u2 = uuid7()
+        # Should use last_timestamp + 1
+        assert u2.time >= last_ts + 1000
+
+
+class TestUUIDTimeProperty:
+    """Tests for UUID time property with different versions"""
+
+    def test_time_property_uuid_v1(self):
+        """Test time property works for UUID v1"""
+        from uuid import uuid1 as std_uuid1
+
+        u = std_uuid1()
+        # Create our UUID from the same int
+        u_backport = UUID(int=u.int)
+        assert u_backport.time == u.time
+
+
+class TestPackageVersion:
+    """Tests for package version handling"""
+
+    def test_version_exists(self):
+        """Test that __version__ is defined"""
+        import uuid_backport
+
+        assert hasattr(uuid_backport, "__version__")
+        assert isinstance(uuid_backport.__version__, str)
+        assert len(uuid_backport.__version__) > 0
+
+    def test_version_fallback_on_package_not_found(self):
+        """Test that __version__ falls back to 'unknown' when package metadata is not found"""
+        import importlib
+        from importlib.metadata import PackageNotFoundError
+        from unittest.mock import patch
+
+        # Mock the version function to raise PackageNotFoundError
+        with patch("importlib.metadata.version", side_effect=PackageNotFoundError):
+            # Reload the module to trigger the exception handler
+            import uuid_backport
+
+            importlib.reload(uuid_backport)
+            assert uuid_backport.__version__ == "unknown"
