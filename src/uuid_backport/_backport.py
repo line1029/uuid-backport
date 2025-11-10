@@ -1,3 +1,18 @@
+# Copyright (c) 2025 Minsoo Jun
+#
+# This file is part of the uuid-backport project.
+# It contains code backported from the Python 3.14 standard library's `uuid`
+# module, which is licensed under the Python Software Foundation License v2.
+#
+# The original Python `uuid` module is:
+# Copyright (c) 2001-2025 Python Software Foundation. All rights reserved.
+#
+# Modifications and additions made for this backport are licensed under the
+# MIT License. See the LICENSE file in the project root for full license text.
+#
+# The full text of the Python Software Foundation License v2 can be found
+# in the LICENSE.PSF file in the project root.
+
 """Backport implementation of Python 3.14 UUID features for Python 3.9-3.13"""
 
 import os

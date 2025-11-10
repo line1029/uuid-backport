@@ -180,7 +180,16 @@ uv run ruff format .
 
 ## License
 
-MIT License - Based on Python 3.14's uuid module
+This project is licensed under the terms of the MIT License.
+
+However, this package contains code that has been backported from the Python 3.14 standard library's `uuid` module. The original code from the Python standard library is licensed under the **Python Software Foundation License Version 2**.
+
+For clarity:
+
+-   The backporting effort, modifications, and any additional code written specifically for this project are covered by the MIT License.
+-   The underlying algorithms and code structure originating from the Python standard library are subject to the terms of the PSF License.
+
+A copy of the MIT License can be found in the `LICENSE` file, and a copy of the PSF License is included as `LICENSE.PSF`.
 
 ## References
 
