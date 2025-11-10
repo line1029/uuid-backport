@@ -28,7 +28,7 @@ jobs:
     - name: Install tox
       run: uv tool install tox --with tox-uv
     - name: Run tox tests
-      run: tox -e py${{ matrix.python-version//./ }}
+      run: tox -e py
     - name: Store coverage data
       uses: actions/upload-artifact@v4
       with:
