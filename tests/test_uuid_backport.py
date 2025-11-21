@@ -445,18 +445,25 @@ class TestUUID6EdgeCases:
 
     def test_uuid6_timestamp_monotonicity_same_time(self):
         """Test uuid6 timestamp is incremented when generated at same time"""
+        import time
+
         import uuid_backport._backport as bp
 
-        # Reset state
-        bp._last_timestamp_v6 = None
+        # Save and reset state
+        original = bp._last_timestamp_v6
 
-        u1 = uuid6()
-        # Set last timestamp to future to trigger monotonicity check
-        bp._last_timestamp_v6 = u1.time + 100
-        u2 = uuid6()
+        try:
+            # Calculate a future timestamp that will trigger monotonicity check
+            future_timestamp = time.time_ns() // 100 + 0x01B21DD213814000 + 1_000_000
+            bp._last_timestamp_v6 = future_timestamp
 
-        # u2 should have timestamp = _last_timestamp_v6 + 1
-        assert u2.time == bp._last_timestamp_v6
+            uuid6()
+
+            # timestamp should be incremented by 1
+            assert bp._last_timestamp_v6 == future_timestamp + 1
+        finally:
+            # Restore state
+            bp._last_timestamp_v6 = original
 
 
 @skip_on_py314
